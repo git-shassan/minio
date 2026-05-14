@@ -1,5 +1,4 @@
-# MinIO Kubernetes Manifests — Manifest B
-
+# MinIO Kubernetes Manifests 
 This document describes the Kubernetes/OpenShift YAML manifests used to deploy a MinIO object storage instance within the `minio` namespace.
 
 ---
