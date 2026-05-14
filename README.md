@@ -1,6 +1,85 @@
-# MinIO Kubernetes Manifests 
-This document describes the Kubernetes/OpenShift YAML manifests used to deploy a MinIO object storage instance within the `minio` namespace.
+# LVM Storage Operator Manifests
+This document describes the Kubernetes/OpenShift YAML manifests used to deploy a MinIO object storage instance within the `minio` namespace. Since it requires storage to be in place, prior to installing MiniO,  
+LVM Storage (LVMS) operator is used to configure local storage on a Single Node OpenShift (SNO) cluster.
 
+---
+
+## Namespace
+
+Creates a dedicated `openshift-storage` namespace to isolate all storage-related operator resources from other workloads in the cluster.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-storage
+```
+
+---
+
+## OperatorGroup
+
+Defines an OperatorGroup that scopes the LVMS operator's visibility and access to the `openshift-storage` namespace, ensuring it only manages resources within that namespace.
+
+```yaml
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-storage-operatorgroup
+  namespace: openshift-storage
+spec:
+  targetNamespaces:
+  - openshift-storage
+```
+
+---
+
+## Subscription — LVMS Operator
+
+Instructs the Operator Lifecycle Manager (OLM) to automatically install and keep the `lvms-operator` up to date, sourcing it from the disconnected Red Hat operator catalog.
+
+```yaml
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: lvms
+  namespace: openshift-storage
+spec:
+  installPlanApproval: Automatic
+  name: lvms-operator
+  source: redhat-operators-disconnected
+  sourceNamespace: openshift-marketplace
+```
+
+---
+
+## LVMCluster — Storage Configuration
+
+Configures an LVM storage cluster on the node by creating a volume group (`vg1`) backed by the `/dev/sdb` disk, with a thin-pool that uses 90% of the disk and allows up to 10x overprovisioning for dynamic persistent volume claims.
+
+```yaml
+apiVersion: lvm.topolvm.io/v1alpha1
+kind: LVMCluster
+metadata:
+  name: sno-lvmcluster
+  namespace: openshift-storage
+spec:
+  storage:
+    deviceClasses:
+    - name: vg1
+      default: true
+      deviceSelector:
+        paths:
+        - /dev/sdb
+      thinPoolConfig:
+        name: thin-pool-1
+        overprovisionRatio: 10
+        sizePercent: 90
+```
+
+# MinIO Kubernetes Manifests 
+
+Now that local volume is created, The MiniO related manifests start here... 
 ---
 
 ## Secret — MinIO Credentials
